@@ -1,0 +1,51 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--[if IE 8 ]>    <html xmlns="http://www.w3.org/1999/xhtml" class="ie ie8"> <![endif]-->
+<!--[if IE 9 ]>    <html xmlns="http://www.w3.org/1999/xhtml" class="ie ie9"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--> <html xmlns="http://www.w3.org/1999/xhtml" class=""> <!--<![endif]-->
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <script type="text/javascript" src="/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/knockout-min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://yandex.st/bootstrap/2.3.2/css/bootstrap.min.css" />
+    <script type="text/javascript" src="/js/bootstrap.min.js"></script>
+    <title>Secure Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/client.js"></script>
+</head>
+<body>
+    <div class="container">
+        <br />
+        <pre id="actions-log">
+            wild-duck
+        </pre>
+        <div id="ended" style="display: none;">
+            <h2>Готово:</h2>
+            <div id="tasks"></div>
+        </div>
+        <div id="process" style="display: none;">
+            <h2>Процесс:</h2>
+            <h3 id="procName">Процесс:</h3>
+            <div class="progress progress-striped active">
+                <div class="bar" style="width: 40%;" id="pBar"></div>
+            </div>
+        </div>
+
+        <div class="btn btn-success" onclick="run()">Поехали!</div>
+        <div data-bind="text: templateName"></div>
+        <!-- ko if: templateName -->
+            <div class="main-div" data-bind="template: { 'name': templateName() }"></div>
+        <!-- /ko -->
+    </div>
+    <script type="text/html" id="loaded">
+        <div data-bind="text: memoryUsageWord"></div>
+        <div class="user-info" data-bind="template: { 'name': 'user-info', data: user }"></div>
+    </script>
+    <script type="text/html" id="loading">
+        loading
+    </script>
+    <script type="text/html" id="user-info">
+        <input data-bind="value: name">
+    </script>
+</body>
+</html>
+
