@@ -187,6 +187,10 @@ class serv
     @io = require('socket.io').listen(@app)
     @io.set('log level', 1)
     @fs = require('fs')
+    @openpgp = require('./modules/openpgp_serv.js')
+    @openpgp.openpgp.init()
+    console.log(@openpgp.md5("123"))
+    process.exit()
     @users = {count: 0}
     @app.listen(8080)
     @io.sockets.on('connection', @userConnection)
