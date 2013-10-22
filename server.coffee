@@ -8,6 +8,14 @@ helper =
         return str
     return false
 
+  genAlphabet: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!'
+  generatePassword: (len)->
+    key = ''
+    alphabet = helper.genAlphabet
+    for i in [1..len]
+      key = key + alphabet[Math.ceil(Math.random()*alphabet.length)]
+    return key
+
   baseAlpha: ['bfnsJwMZNSruVPBFjLmQWeEaHtzCAxhdcXkDYGpKUyTRv','dwVxjRPJFNYhDbumHyveGTWQkcsazXCBfMrASKnUEZptL','XQaRjszLWxYNEekubPvHKDdSnTphMAVBcFmZGtywJrfUC'],
 
   intToStr: (int, baseId)=>
@@ -194,6 +202,9 @@ class serv
     @users = {count: 0}
     @app.listen(8080)
     @io.sockets.on('connection', @userConnection)
+    @io.sockets.on 'disconnect', (socket)=>
+      delete @connectionsData[socket.id]
+
     @redis = require('redis')
     UserManager.myServ = @
     @db = @redis.createClient(6379, 'localhost');
@@ -214,6 +225,7 @@ class serv
   onlineUsers: 0,
   connectedUsers: {},
   connectedPublicUsersMap: {},
+  connectionsData: {},#state 0 - uninited, state 1 inited and wating respons for question, state 2 - connected
   gameChains: {},
   onlineUsersUpdating: false,
   systemInfo: {},
@@ -311,13 +323,47 @@ class serv
           res.end(data)
       )
 
+  unauthorized: (socket,reason)=>
+    socket.emit('unauthorized',{"reason":reason})
+    @connectionsData[socket.id] = {question:"",state:0}
+
   userConnection: (socket)=>
     console.log('new user')
-    #socket.emit('news', { message: ' hello world' })
+    @connectionsData[socket.id] = {question:"",state:0}
     socket.on(
       'init',
       (data)=>
-        @setUser(socket,data)
+        if @connectionsData[socket.id]["state"] == 0
+          if data.pubKey
+            @connectionsData[socket.id]["pubKeyStr"] = data.pubKey
+            pubKey = @openpgp.openpgp.read_publicKey(data.pubKey)
+            @connectionsData[socket.id]["pubKey"] = pubKey
+            if pubKey < 1
+              @unauthorized(socket,"pubKey not correct")
+            else
+              @connectionsData[socket.id]["authpass"] = helper.generatePassword(10)
+              cryptPass = @openpgp.openpgp.write_encrypted_message(pub_key,@connectionsData[socket.id]["authpass"])
+              @connectionsData[socket.id]["state"] = 1
+              socket.emit('authstep',{"cryptPass": cryptPass})
+          else
+            @unauthorized(socket,"pubKey not found")
+    )
+    socket.on(
+      'authResopnse',
+      (data)=>
+        if @connectionsData[socket.id]["state"] == 1
+          if data.authpass
+            if @connectionsData[socket.id]["authpass"] == data.authpass
+              @connectionsData[socket.id]["state"] = 2
+              socket.emit('authorized',{"success": true})
+              delete @connectionsData[socket.id]["authpass"]
+              authData = {}
+              authData["name"] = @connectionsData[socket.id]["pubKey"][0].userIds[0].text
+              authData["pubKeyStr"] = @connectionsData[socket.id]["pubKeyStr"]
+              authData["md5"] = @openpgp.md5(authData["name"] + authData["pubKeyStr"])
+              @setUser(socket,authData)
+          else
+            @unauthorized(socket,"authpass not defined")
     )
     #@usersUpdated(1)
 

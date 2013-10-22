@@ -30,7 +30,9 @@ class clientApp
             word = 'авторизуемся'
             @authorize()
           else
-            word = 'авторивоаны'
+            word = 'авторизованы'
+        else if !@connected()
+          word = 'нет связи'
         return word
     )
     @mainUser.name.subscribe(
@@ -39,6 +41,12 @@ class clientApp
             socket.emit('userCommand',{'name':'nameChanged','newName':newValue})
 
     )
+    @socket.on 'connect', =>
+      @connected(true)
+    @socket.on 'reconnect', =>
+      @connected(true)
+    @socket.on 'disconnect', =>
+      @connected(false)
 
 
 
