@@ -20,34 +20,41 @@ class clientApp
     openpgp.init()
     @socket = io.connect('http://localhost')
     @mainUser = new MainUser(@)
-    @usersList = new UserList()
+    #@usersList = new UserList()
     @connected = ko.observable(false)
+    @authStateWord = ko.observable('нет связи')
+
     @autorizationWord = ko.computed(
       =>
-        word = ''
         if(@connected() && @mainUser.statusReady())
           if(!@mainUser.authorized())
-            word = 'авторизуемся'
+            @authStateWord('авторизуемся')
             @authorize()
           else
-            word = 'авторизованы'
+            @authStateWord('авторизованы')
         else if !@connected()
-          word = 'нет связи'
-        return word
-    )
-    @mainUser.name.subscribe(
-        (newValue)=>
-          if(!@updatingUserInfo())
-            socket.emit('userCommand',{'name':'nameChanged','newName':newValue})
+          @authStateWord('нет связи')
+        else if @connected() && !@mainUser.statusReady()
+          @authStateWord('ох =((')
 
+        return @authStateWord()
     )
     @socket.on 'connect', =>
+      console.log('conncted succesfully')
       @connected(true)
     @socket.on 'reconnect', =>
+      console.log('conncted succesfully')
       @connected(true)
     @socket.on 'disconnect', =>
       @connected(false)
 
+    @socket.on 'authstep', (data)=>
+      if data.cryptPass
+        msg = @mainUser.decodeMessage(data.cryptPass)
+        if msg
+          @socket.emit('authResopnse',{authpass: msg})
+        else
+          @authStateWord('ошибка авторизации')
 
 
     ###socket = io.connect('http://localhost')
@@ -123,9 +130,12 @@ class clientApp
     console.log('need join to serv')
 
   authorize: =>
+    @socket.emit('init',{pubKey: @mainUser.pubKeyStr})
 
   unauthorize: =>
-    @socket.emit('unauthorize',true)
+    if @mainUser.authorized()
+      @socket.disconnect()
+    #@socket.emit('unauthorize',true)
 
   formatDigit: (price) ->
     intPrice = parseInt(price)
@@ -191,18 +201,22 @@ class MainUser
         @statusReady(false)
         @authorized(false)
         @app.unauthorize()
-        if(newValue)
-          @generateKeys()
+        UtilsHelper.storageSet('username',newValue)
     )
+    @authProcess = ko.computed =>
+      if @name()
+        @generateKeys()
+      return @name()
     if(@name())
       needGenerate = true
       @pass = UtilsHelper.storageGet('mainpass')
       @pubKeyStr = UtilsHelper.storageGet('mainPubKey')
       privKey = UtilsHelper.storageGet('mainPrivKey')
-      if(pubKey && privKey)
+      if(@pubKeyStr && privKey)
         @pubKey = openpgp.read_publicKey(@pubKeyStr)
         if(!(@pubKey < 1))
           @privKey = openpgp.read_privateKey(privKey)
+          @privKey = @privKey[0]
           if(!(@privKey.length < 1))
             needGenerate = false
             @statusReady(true)
@@ -211,21 +225,46 @@ class MainUser
         @generateKeys()
 
   generateKeys: ()=>
-    @pass = generatePassword((15 + Math.floor(Math.random()*5) ))
-    keyPair = openpgp.generate_key_pair(1, 2048, @name, @pass)
+    @pass = UtilsHelper.generatePassword((15 + Math.floor(Math.random()*5) ))
+    UtilsHelper.storageSet('mainpass',@pass)
+    keyPair = openpgp.generate_key_pair(1, 2048, @name(), @pass)
     @pubKeyStr = keyPair.publicKeyArmored
     UtilsHelper.storageSet('mainPubKey',@pubKeyStr)
-    UtilsHelper.storageSet('mainPrivKey',keyPair.publicKeyArmored)
+    UtilsHelper.storageSet('mainPrivKey',keyPair.privateKeyArmored)
     @privKey = keyPair.privateKey
     @pubKey = openpgp.read_publicKey(keyPair.publicKeyArmored)
     @statusReady(true)
     @md5ident(md5(@pubKeyStr))
 
+  decodeMessage: (messageStr)=>
+    msg = openpgp.read_message(messageStr);
+    keymat = null;
+    sesskey = null;
+    #Find the private (sub)key for the session key of the message
+    for sessionKey in msg[0].sessionKeys
+      sessionKey
+      if @privKey.privateKeyPacket.publicKey.getKeyId() == sessionKey.keyId.bytes
+        keymat = { key: @privKey, keymaterial: @privKey.privateKeyPacket}
+        break
+      for subKey in @privKey.subKeys
+        if subKey.publicKey.getKeyId() == sessionKey.keyId.bytes
+          keymat = {key: @privKey, keymaterial: subKey}
+          break
+    if keymat != null
+      if !keymat.keymaterial.decryptSecretMPIs(@pass)
+        return false
+      return msg[0].decrypt(keymat,sessionKey)
+    else return false
 
 
 cApp = new clientApp()
+window.uttt = 1234
+window.UtilsHelper = UtilsHelper
 
 $(document).ready(
   ->
+    console.log('ko bind')
     ko.applyBindings(cApp);
+    window.cApp = cApp
+    return true
 )

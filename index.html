@@ -6,6 +6,9 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <script type="text/javascript" src="/js/jquery.min.js"></script>
     <script type="text/javascript" src="/js/knockout-min.js"></script>
+    <script type="text/javascript" src="/js/jstorage.js"></script>
+    <script type="text/javascript" src="/js/mouse.js"></script>
+    <script type="text/javascript" src="/js/openpgp.js"></script>
     <link rel="stylesheet" type="text/css" href="http://yandex.st/bootstrap/2.3.2/css/bootstrap.min.css" />
     <script type="text/javascript" src="/js/bootstrap.min.js"></script>
     <title>Secure Chat</title>
@@ -31,14 +34,15 @@
         </div>
 
         <div class="btn btn-success" onclick="run()">Поехали!</div>
-        <div data-bind="text: templateName"></div>
-        <!-- ko if: templateName -->
-            <div class="main-div" data-bind="template: { 'name': templateName() }"></div>
-        <!-- /ko -->
+
+        <div class="main-div" data-bind="template: { 'name': 'loaded' }"></div>
     </div>
     <script type="text/html" id="loaded">
-        <div data-bind="text: memoryUsageWord"></div>
-        <div class="user-info" data-bind="template: { 'name': 'user-info', data: user }"></div>
+        123loaded
+        <div class="user-info">
+            <div data-bind="text: authStateWord"></div>
+            <input data-bind="value: mainUser.name" />
+        </div>
     </script>
     <script type="text/html" id="loading">
         loading

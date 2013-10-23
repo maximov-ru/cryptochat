@@ -197,8 +197,8 @@ class serv
     @fs = require('fs')
     @openpgp = require('./modules/openpgp_serv.js')
     @openpgp.openpgp.init()
-    console.log(@openpgp.md5("123"))
-    process.exit()
+    #console.log(@openpgp.md5("123"))
+    #process.exit()
     @users = {count: 0}
     @app.listen(8080)
     @io.sockets.on('connection', @userConnection)
@@ -278,6 +278,8 @@ class serv
     return nameWord+@namesCount[nameWord]
 
   setUser: (socket, data)=>
+    console.log('userAuthorized',data)
+    return true
     if data.privateUniq
       if @connectedUsers[data.privateUniq]
         console.log('nashel v operativke')
@@ -312,6 +314,12 @@ class serv
     urls['/templates/loaded.html'] = '/templates/loaded.html'
     urls['/templates/loading.html'] = '/templates/loading.html'
     urls['/js/knockout-min.js'] = '/js/knockout-min.js'
+    urls['/js/jquery.min.js'] = '/js/jquery.min.js'
+    urls['/js/jstorage.js'] = '/js/jstorage.js'
+    urls['/js/mouse.js'] = '/js/mouse.js'
+    urls['/js/openpgp.js'] = '/js/openpgp.js'
+    urls['/js/jquery.js'] = '/js/jquery.js'
+    urls['/js/bootstrap.min.js'] = '/js/bootstrap.min.js'
     if urls[req.url]
       @fs.readFile(
         __dirname + urls[req.url],
@@ -342,7 +350,7 @@ class serv
               @unauthorized(socket,"pubKey not correct")
             else
               @connectionsData[socket.id]["authpass"] = helper.generatePassword(10)
-              cryptPass = @openpgp.openpgp.write_encrypted_message(pub_key,@connectionsData[socket.id]["authpass"])
+              cryptPass = @openpgp.openpgp.write_encrypted_message(pubKey,@connectionsData[socket.id]["authpass"])
               @connectionsData[socket.id]["state"] = 1
               socket.emit('authstep',{"cryptPass": cryptPass})
           else
