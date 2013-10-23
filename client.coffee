@@ -35,7 +35,7 @@ class clientApp
         else if !@connected()
           @authStateWord('нет связи')
         else if @connected() && !@mainUser.statusReady()
-          @authStateWord('ох =((')
+          @authStateWord('генерация ключей')
 
         return @authStateWord()
     )
@@ -55,6 +55,9 @@ class clientApp
           @socket.emit('authResopnse',{authpass: msg})
         else
           @authStateWord('ошибка авторизации')
+    @socket.on 'authorized', (data)=>
+      if data.success
+        @mainUser.authorized(true)
 
 
     ###socket = io.connect('http://localhost')
@@ -134,8 +137,11 @@ class clientApp
 
   unauthorize: =>
     if @mainUser.authorized()
-      @socket.disconnect()
-    #@socket.emit('unauthorize',true)
+      @socket.emit('unauthorize',true)
+      @mainUser.authorized(false)
+      @connected(false)
+      @connected(true)
+
 
   formatDigit: (price) ->
     intPrice = parseInt(price)
@@ -199,13 +205,16 @@ class MainUser
     @name.subscribe(
       (newValue)=>
         @statusReady(false)
-        @authorized(false)
         @app.unauthorize()
         UtilsHelper.storageSet('username',newValue)
     )
     @authProcess = ko.computed =>
-      if @name()
-        @generateKeys()
+      if @name() && !@statusReady()
+        window.setTimeout(
+          =>
+            @generateKeys()
+          , 100
+      )
       return @name()
     if(@name())
       needGenerate = true

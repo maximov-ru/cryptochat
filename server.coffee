@@ -373,6 +373,11 @@ class serv
           else
             @unauthorized(socket,"authpass not defined")
     )
+    socket.on(
+      'unauthorize',
+      (data)=>
+        @connectionsData[socket.id] = {question:"",state:0}
+    )
     #@usersUpdated(1)
 
     ###socket.on(
