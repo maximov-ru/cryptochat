@@ -115,15 +115,11 @@ UserManager =
 
 
 
-  createUser: (user,socket,newUniq)->
+  createUser: (user,socket)->
     console.log('createUser')
-    UserManager.connectionPush(user,socket)
-    user.privUniq = newUniq
-    UserManager.setParam(user,'pubUniq',UserManager.myServ.getPubUniq())
-    UserManager.setParam(user,'name',UserManager.myServ.getNewName())
-    user.filled = true
-    UserManager.myServ.connectedPublicUsersMap[user.pubUniq] = UserManager.myServ.connectedUsers[user.privUniq]
-    UserManager.sendUserInfo(user,socket)
+    UserManager.addConnection(user,socket)
+    UserManager.myServ.onlineUsers++
+
     UserManager.myServ.usersUpdated(1)
 
   addConnection: (user,socket)->
@@ -166,13 +162,9 @@ UserManager =
 
 
 class User
-  pubUniq: '',
-  privUniq: '',
-  filled: false,
-  filling: false,
+  hash: '',
   name: '',
-  state: 1,
-  servChain: '',
+  publicKeyStr: '',
   connections: {},
   connectionsCount: 0
 
@@ -224,26 +216,28 @@ class serv
 
   onlineUsers: 0,
   connectedUsers: {},
-  connectedPublicUsersMap: {},
   connectionsData: {},#state 0 - uninited, state 1 inited and wating respons for question, state 2 - connected
   gameChains: {},
   onlineUsersUpdating: false,
   systemInfo: {},
-  namesCount: {}
-  usersUpdated: (delta)=>
-    @onlineUsers += delta
-    if !@onlineUsersUpdating
-      console.log('send users count',@onlineUsers)
-      @io.sockets.emit( 'users', {onlineCount: @onlineUsers} )
-      @onlineUsersUpdating = @onlineUsers
-      setTimeout(
-        =>
-          tmp = @onlineUsersUpdating
-          @onlineUsersUpdating = false
-          if tmp != @onlineUsers
-            @usersUpdated(0)
-        , 5000
-      )
+  namesCount: {},
+
+  newUserConnected: (user)=>
+    userInfo = {}
+    userInfo['onlineCount'] = @onlineUsers
+    userInfo['user'] = {}
+    userInfo['user']['name'] = user.name
+    userInfo['user']['hash'] = user.hash
+    @io.sockets.emit( 'userConnected', userInfo )
+
+  userDisconnected: (user)=>
+    userInfo = {}
+    userInfo['onlineCount'] = @onlineUsers
+    userInfo['user'] = {}
+    userInfo['user']['name'] = user.name
+    userInfo['user']['hash'] = user.hash
+    @io.sockets.emit( 'userDisconnected', userInfo )
+
 
   #running every 15 secs
   systemUpdated: ()=>
@@ -280,27 +274,12 @@ class serv
   setUser: (socket, data)=>
     console.log('userAuthorized',data)
     return true
-    if data.privateUniq
-      if @connectedUsers[data.privateUniq]
-        console.log('nashel v operativke')
-        UserManager.addConnection(@connectedUsers[data.privateUniq],socket)
+    if data.md5
+      if @connectedUsers[data.md5]
+        UserManager.addConnection(@connectedUsers[data.md5],socket)
       else
-        console.log('ishu v redis')
-        @connectedUsers[data.privateUniq] = new User()
-        @db.get(
-          'user_privUniq'+data.privateUniq,
-          (err,ret)=>
-            if err
-              console.log('netu v redis')
-              newUniq = @getPrivUniq()
-              delete @connectedUsers[data.privateUniq]
-              @connectedUsers[newUniq] = new User()
-              UserManager.createUser(@connectedUsers[newUniq],socket,newUniq)
-            else
-              console.log('nashel v redis')
-              @connectedUsers[data.privateUniq].privUniq = data.privateUniq
-              UserManager.addConnection(@connectedUsers[data.privateUniq],socket)
-        )
+        @connectedUsers[data.md5] = new User()
+
     else
       console.log('noviy user')
       newUniq = @getPrivUniq()
