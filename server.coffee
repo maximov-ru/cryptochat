@@ -85,8 +85,6 @@ UserManager =
   connectionPush: (user,socket)->
     user.connections[socket.id] = socket
     user.connectionsCount++
-    if user.connectionsCount == 1
-      UserManager.myServ.usersUpdated(1)
     socket.on(
       'userCommand',
       (command)->
@@ -97,41 +95,35 @@ UserManager =
       ->
         UserManager.connectionPop(user,socket)
         if user.connectionsCount == 0
-          UserManager.myServ.usersUpdated(-1)
-          if user.pubUniq
-            delete UserManager.myServ.connectedPublicUsersMap[user.pubUniq]
-          delete UserManager.myServ.connectedUsers[user.privUniq]
+          UserManager.myServ.userDisconnected(user)
+          hash = user.hash
+          delete UserManager.myServ.connectedUsers[hash]["publicKeyStr"]
+          delete UserManager.myServ.connectedUsers[hash]["hash"]
+          delete UserManager.myServ.connectedUsers[hash]["connections"]
+          delete UserManager.myServ.connectedUsers[hash]["connectionsCount"]
+          delete UserManager.myServ.connectedUsers[hash]["name"]
+          delete UserManager.myServ.connectedUsers[hash]
     )
 
   connectionPop: (user,socket)->
     delete user.connections[socket.id]
     user.connectionsCount--
-
+    delete UserManager.myServ.connectionsData[socket.id]
 
   parseCommand: (user,socket,command)->
     if command.name
       switch command.name
         when "nameChanged" then UserManager.nameChanged(user,socket,command.newName)
 
-
-
   createUser: (user,socket)->
     console.log('createUser')
     UserManager.addConnection(user,socket)
     UserManager.myServ.onlineUsers++
-
-    UserManager.myServ.usersUpdated(1)
+    UserManager.myServ.newUserConnected(user)
 
   addConnection: (user,socket)->
     console.log('addConection')
     UserManager.connectionPush(user,socket)
-    UserManager.fillUser(
-      user,
-      socket,
-      (user,socket)->
-        console.log('sendUser callback')
-        UserManager.sendUserInfo(user,socket)
-    )
 
   fillUser: (user,socket,callback)->
     if ((!user.filled) && (!user.filling))
@@ -159,8 +151,6 @@ UserManager =
     else
       callback(user,socket)
 
-
-
 class User
   hash: '',
   name: '',
@@ -172,14 +162,6 @@ class UserReg
   name: '',
   pass: '',
   statistic: '',
-
-class ChainServ
-  name: '',
-  uniq: '',
-  users: {},
-  usercCount: 0,
-  state: 1,
-  userOwner: '',
 
 class serv
   constructor: ->
@@ -217,7 +199,6 @@ class serv
   onlineUsers: 0,
   connectedUsers: {},
   connectionsData: {},#state 0 - uninited, state 1 inited and wating respons for question, state 2 - connected
-  gameChains: {},
   onlineUsersUpdating: false,
   systemInfo: {},
   namesCount: {},
@@ -238,6 +219,13 @@ class serv
     userInfo['user']['hash'] = user.hash
     @io.sockets.emit( 'userDisconnected', userInfo )
 
+  unauthorized: (socket)=>
+    usersInfo = {}
+    usersInfo['onlineCount'] = @onlineUsers
+    usersInfo['users'] = {}
+    for userHash,user of @connectedUsers
+      usersInfo['users'][userHash] user.name
+    socket.emit('usersList',usersInfo)
 
   #running every 15 secs
   systemUpdated: ()=>

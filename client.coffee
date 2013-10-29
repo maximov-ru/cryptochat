@@ -214,7 +214,8 @@ class MainUser
           =>
             @generateKeys()
           , 100
-      )
+        )
+
       return @name()
     if(@name())
       needGenerate = true
