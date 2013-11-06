@@ -13,6 +13,65 @@ UtilsHelper =
     $.jStorage.set(key,value)
     return true
 
+class CrossWindow
+  constructor: ->
+    @queue = {}
+    @listners = {}
+    window.setInterval(
+      =>
+        @readQueue()
+      , 300
+    )
+
+  readQueue: =>
+    queue = $.parseJSON(@.storageGet("windowQueue"))
+    today = new Date()
+    nowTimestamp = today.getTime()
+    needResave = false
+    for taskId,task of queue
+      if @queue[taskId]
+        delta = nowTimestamp - task.timestamp
+        if delta > 4000
+          delete queue[taskId]
+          needResave = true
+        else
+          if @listeners[task.event]
+            for listner in @listeners[task.event]
+              listner.callback(task.data)
+
+    if needResave
+      @queue = queue
+      @writeQueue()
+
+  writeQueue: =>
+    @storageSet("windowQueue",JSON.stringify(@queue))
+
+  on: (eventName,callback)=>
+    if !@listeners[eventName]
+      @listeners[eventName] = []
+    @listeners[eventName].push({"callback":callback})
+
+  emit: (eventName, data = {})=>
+    today = new Date()
+    task = {"timestamp": today.getTime(),"data": data}
+    taskId =  UtilsHelper.generatePassword(5)
+    @readQueue()
+    @queue[taskId] = task
+    writeQueue()
+    window.setTimeout(
+      =>
+        @readQueue()
+        delete @queue[taskId]
+        writeQueue()
+      , 1000
+    )
+
+  storageGet: (key)->
+    return $.jStorage.get(key)
+
+  storageSet: (key,value)->
+    $.jStorage.set(key,value)
+    return true
 
 
 class clientApp
@@ -215,8 +274,8 @@ class MainUser
             @generateKeys()
           , 100
         )
-
       return @name()
+
     if(@name())
       needGenerate = true
       @pass = UtilsHelper.storageGet('mainpass')

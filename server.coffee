@@ -67,21 +67,6 @@ UserManager =
 
     #send to all subscribed objects
 
-  sendUserInfo: (user,socket)=>
-    console.log('send userInfo')
-    userObj = {}
-    userObj.name = user.name
-    userObj.privUniq = user.privUniq
-    userObj.pubUniq = user.pubUniq
-    socket.emit('userInfo',userObj)
-
-  getUserInfo: (userPub)=>
-    userObj = {}
-    userObj.pubUniq = userPub
-    if UserManager.myServ.connectedPublicUsersMap[userPub]
-      userObj.name = UserManager.myServ.connectedPublicUsersMap[userPub].name
-    return userObj
-
   connectionPush: (user,socket)->
     user.connections[socket.id] = socket
     user.connectionsCount++
@@ -125,31 +110,6 @@ UserManager =
     console.log('addConection')
     UserManager.connectionPush(user,socket)
 
-  fillUser: (user,socket,callback)->
-    if ((!user.filled) && (!user.filling))
-      console.log('filling user')
-      initParams = ['pubUniq','name','state','servChain']
-      n = initParams.length-1;
-      if user.privUniq
-        reqKeys = []
-        user.filling = true
-        for param in initParams
-          reqKeys.push('user_'+param+user.privUniq)
-        UserManager.myServ.db.mget(
-          reqKeys,
-          (err,ret)=>
-            for i in [0..n]
-              user[initParams[i]] = ret[i]
-            user.filled = true
-            user.filling = false
-
-            UserManager.myServ.connectedPublicUsersMap[user.pubUniq] = UserManager.myServ.connectedUsers[user.privUniq]
-            callback(user,socket)
-        )
-      else
-        console.log('user object empty',user)
-    else
-      callback(user,socket)
 
 class User
   hash: '',
@@ -219,12 +179,12 @@ class serv
     userInfo['user']['hash'] = user.hash
     @io.sockets.emit( 'userDisconnected', userInfo )
 
-  unauthorized: (socket)=>
+  usersList: (socket)=>
     usersInfo = {}
     usersInfo['onlineCount'] = @onlineUsers
     usersInfo['users'] = {}
     for userHash,user of @connectedUsers
-      usersInfo['users'][userHash] user.name
+      usersInfo['users'][userHash] = user.name
     socket.emit('usersList',usersInfo)
 
   #running every 15 secs
