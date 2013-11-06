@@ -67,6 +67,15 @@ UserManager =
 
     #send to all subscribed objects
 
+  sendUserInfo: (user,socket)=>
+    console.log('send userInfo')
+    userObj = {}
+    userObj.name = user.name
+    userObj.name = user.name
+    userObj.name = user.name
+    userObj.name = user.name
+    socket.emit('userInfo',userObj)
+
   connectionPush: (user,socket)->
     user.connections[socket.id] = socket
     user.connectionsCount++
