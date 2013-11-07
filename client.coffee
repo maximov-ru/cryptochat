@@ -250,8 +250,14 @@ class User
     @pubKeyStr = ko.observable('')
     @md5ident = ko.observable('')
     @status = ko.observable('offline')
+    @messages = ko.observableArray([])
     @pubKey = ko.observable(null)
     @queueMassages = []
+
+class userMessage
+  constructor: (@fromYou,@message,@sendTimestamp,@receiptTemestamp = null)->
+
+
 
 
 class MainUser
