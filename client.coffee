@@ -118,6 +118,16 @@ class clientApp
       if data.success
         @mainUser.authorized(true)
 
+    @socket.on 'messageFrom', (data)=>
+      today = new Date()
+      msg = @mainUser.decodeMessage(data.msg)
+      if(msg)
+        msg = JSON.parse(msg)
+      else
+        @flashMessage("принятое сообщение невозможно раскодировать")
+      message = new userMessage()
+      #message.
+
 
     ###socket = io.connect('http://localhost')
     @user = new User
@@ -190,6 +200,12 @@ class clientApp
   fillServInfo: =>
     console.log('need join to serv')
     console.log('need join to serv')
+  flashMessage: (errorMsg,errorType = 0)=>
+    # 0 - system error
+    if(errorType == 0)
+      console.log("system error:"+errorMsg)
+    else
+      console.log("Error:"+errorMsg)
 
   authorize: =>
     @socket.emit('init',{pubKey: @mainUser.pubKeyStr})
