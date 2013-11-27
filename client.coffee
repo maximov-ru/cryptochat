@@ -79,7 +79,7 @@ class clientApp
     openpgp.init()
     @socket = io.connect('http://localhost')
     @mainUser = new MainUser(@)
-    #@usersList = new UserList()
+    @usersList = new UserList()
     @connected = ko.observable(false)
     @authStateWord = ko.observable('нет связи')
 
@@ -123,9 +123,20 @@ class clientApp
       msg = @mainUser.decodeMessage(data.msg)
       if(msg)
         msg = JSON.parse(msg)
+        message = new userMessage(false, msg.message, msg.sendTimestamp, today.getTime())
+        @usersList.addMessage(data.hash, data.name, message)
       else
         @flashMessage("принятое сообщение невозможно раскодировать")
-      message = new userMessage()
+
+    @socket.on 'userInfo', (data)=>
+      @usersList.addUserInfo data
+
+    @socket.on 'userList', (data)=>
+      @usersList.addUserInfo data
+
+
+
+
       #message.
 
 
@@ -238,6 +249,7 @@ class UserList
     @users = ko.observableArray([])
     @usersMap = {}
     @usersIdents = UtilsHelper.storageGet('UsersList')
+    @selectedUser = ko.observable(null)
     for md5ident in @usersIdents
       ##user = new User(@)
       userData = UtilsHelper.storageGet('user_'+md5ident)
@@ -255,9 +267,23 @@ class UserList
       @usersMap[md5ident] = user
       @users.push(@usersMap[md5ident])
 
+  addUserInfo: (userInfo)=>
+    md5ident = userInfo.hash
+    @usersMap[md5ident].pubKeyStr(userInfo.pubKeyStr)
+
+
   changeStatus: (md5ident,status)=>
     if @usersMap[md5ident]
       @usersMap[md5ident].status(status)
+
+  addMessage: (md5ident,name,userMessage)=>
+    if(!@usersMap[md5ident])
+      @usersMap[md5ident] = new User(@)
+      @usersMap[md5ident].md5ident(md5ident)
+      @usersMap[md5ident].name(name)
+      @users.push(@usersMap[md5ident])
+    @usersMap[md5ident].messages.push(userMessage)
+
 
 
 class User
